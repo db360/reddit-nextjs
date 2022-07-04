@@ -1,6 +1,5 @@
-import type { NextPage } from 'next'
-import Head from 'next/head'
-import Header from '../components/Header'
+import type { NextPage } from 'next';
+import Head from 'next/head';
 
 const Home: NextPage = () => {
   return (
@@ -9,10 +8,6 @@ const Home: NextPage = () => {
         <title>Reddit Next.js Clone by Da.B</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-
-    <Header />
-
-
     </div>
   )
 }
