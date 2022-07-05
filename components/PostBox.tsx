@@ -1,10 +1,15 @@
-import { LinkIcon, PhotographIcon } from "@heroicons/react/outline";
-import { useSession } from "next-auth/react";
-
-import { useForm } from "react-hook-form";
-
 import React, { useState } from "react";
+import { useSession } from "next-auth/react";
+import { useForm } from "react-hook-form";
+import { useMutation } from "@apollo/client";
+
+import client from "../apollo-client";
+import { GET_SUBREDDIT_BY_TOPIC } from "../graphql/queries";
+import { ADD_POST, ADD_SUBREDDIT } from "../graphql/mutations";
+
 import Avatar from "./Avatar";
+import { LinkIcon, PhotographIcon } from "@heroicons/react/outline";
+import toast from "react-hot-toast";
 
 type FormData = {
   postTitle: string;
@@ -15,7 +20,11 @@ type FormData = {
 
 const PostBox = () => {
   const { data: session } = useSession(); // sacamos los datos de session de useSession (nextAuth)
+  const [addPost] = useMutation(ADD_POST);
+  const [addSubreddit] = useMutation(ADD_SUBREDDIT);
+
   const [imageBoxOpen, setImageBoxOpen] = useState<boolean>(false);
+
   const {
     register,
     setValue,
@@ -24,14 +33,99 @@ const PostBox = () => {
     formState: { errors },
   } = useForm<FormData>();
 
-  const onSubmit = handleSubmit(async (formData)  => {
-    console.log(formData)
-  })
+  const onSubmit = handleSubmit(async (formData) => {
+    const notification = toast.loading("Creating New Post...");
+    console.log(formData);
+
+    try {
+      // Query for subreddit topic
+      const {
+        data: { getSubredditListByTopic },
+      } = await client.query({
+        query: GET_SUBREDDIT_BY_TOPIC,
+        variables: {
+          topic: formData.subreddit,
+        },
+      });
+
+      console.log(formData.subreddit);
+      console.log(getSubredditListByTopic)
+
+      const subredditExist = getSubredditListByTopic.length > 0;
+
+      if (!subredditExist) {
+        //create subreddit.....
+        console.log("Subreddit New -> creating newSubreddit");
+
+        const {
+          data: { insertSubreddit: newSubreddit },
+        } = await addSubreddit({
+          variables: {
+            topic: formData.subreddit,
+          }
+        });
+
+        console.log("Creating the Post", formData);
+
+        const image = formData.postImage || "";
+
+        const {
+          data: { insertPost: newPost },
+        } = await addPost({
+          variables: {
+            body: formData.postBody,
+            image: image,
+            subreddit_id: newSubreddit.id,
+            title: formData.postTitle,
+            username: session?.user?.name,
+          },
+        });
+
+        console.log("New Post Added", newPost);
+      } else {
+        // use existing subreddit
+        console.log("Using existing subreddit!");
+        console.log(getSubredditListByTopic);
+
+        const image = formData.postImage || "";
+
+        const {
+          data: { insertPost: newPost },
+        } = await addPost({
+          variables: {
+            body: formData.postBody,
+            image: image,
+            subreddit_id: getSubredditListByTopic[0].id,
+            title: formData.postTitle,
+            username: session?.user?.name,
+          },
+        });
+
+        console.log("New Post Added:", newPost);
+      }
+      // Despues de que el post haya sido añadido
+      setValue("postBody", "");
+      setValue("postImage", "");
+      setValue("postTitle", "");
+      setValue("subreddit", "");
+      //Notificacion de todo OK
+      toast.success("New Post Created!", {
+        id: notification,
+      });
+    } catch (error) {
+      console.log(formData);
+
+      console.log(error);
+      toast.error("Whoops, something went wrong!", {
+        id: notification,
+      });
+    }
+  });
 
   return (
     <form
-        onSubmit={onSubmit}
-        className="sticky top-16 z-50 bg-white border rounded-md border-gray-300 p-2"
+      onSubmit={onSubmit}
+      className="sticky top-16 z-50 bg-white border rounded-md border-gray-300 p-2"
     >
       <div className="flex items-center space-x-3">
         <Avatar />
@@ -72,7 +166,7 @@ const PostBox = () => {
             <p className="min-w-[90px]">Subreddit:</p>
             <input
               className="m-2 flex-1 bg-blue-50 p-2 outline-none"
-              {...(register("subreddit"), { required: true })}
+              {...register("subreddit", { required: true })}
               type="text"
               placeholder="i.e reactjs"
             />
