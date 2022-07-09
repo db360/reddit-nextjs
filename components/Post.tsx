@@ -29,11 +29,14 @@ const Post = ({ post }: Props) => {
   const [vote, setVote] = useState<boolean>();
   const { data: session } = useSession();
 
-  const { data, loading } = useQuery(GET_ALL_VOTES_BY_POST_ID, {
+  const { data, loading, error } = useQuery(GET_ALL_VOTES_BY_POST_ID, {
     variables: {
       post_id: post?.id,
     },
   });
+
+  // console.log(post);
+  // console.log(error);
 
   const [addVote] = useMutation(ADD_VOTE, {
     refetchQueries: [GET_ALL_VOTES_BY_POST_ID, "getVotesByPostId"],
@@ -45,18 +48,39 @@ const Post = ({ post }: Props) => {
       return;
     }
 
-    if(vote && isUpvote) return;
-    if(vote === false && !isUpvote) return;
+    if (vote && isUpvote) return;
+    if (vote === false && !isUpvote) return;
 
-    console.log('voting...', isUpvote);
+    if (loading) return toast.loading("Loading...");
+
+    console.log("voting...", isUpvote);
+    toast.success("Voted!");
 
     await addVote({
       variables: {
         post_id: post.id,
         username: session.user?.name,
         upvote: isUpvote,
-      }
-    })
+      },
+    });
+
+    console.log("Placed Vote:", data);
+  };
+
+  const displayVotes = (data: any) => {
+    const votes: Vote[] = data?.getVotesByPostId;
+    const displayNumber = votes?.reduce(
+      (total, vote) => (vote.upvote ? (total += 1) : (total -= 1)),
+      0
+    );
+
+    if (votes?.length === 0) return 0;
+
+    if (displayNumber === 0) {
+      return votes[0]?.upvote ? 1 : -1
+    }
+
+    return displayNumber;
   };
 
   useEffect(() => {
@@ -64,12 +88,13 @@ const Post = ({ post }: Props) => {
 
     // latest vote (as we sorted by newely created first in sql query)
     //Note: You could improve this by moving it to the original Query
-    const vote = votes?.find(vote => vote.username === session?.user?.name)?.upvote
+    const vote = votes?.find(
+      (vote) => vote.username === session?.user?.name
+    )?.upvote;
 
-    setVote(vote)
-
-  }, [data])
-
+    setVote(vote);
+    console.log(vote);
+  }, [data]);
 
   if (!post)
     return (
@@ -85,12 +110,16 @@ const Post = ({ post }: Props) => {
         <div className="flex flex-col items-center justify-start space-y-1 rounded-l-md bg-gray-50 p-4 text-gray-400">
           <ArrowUpIcon
             onClick={() => upVote(true)}
-            className={`voteButtons hover:text-red-400 ${vote && 'text-red-400'}`}
+            className={`voteButtons hover:text-red-400 ${
+              vote && "text-red-400"
+            }`}
           />
-          <p className="text-black font-bold text-xs">0</p>
+          <p className="text-black font-bold text-xs">{displayVotes(data)}</p>
           <ArrowDownIcon
             onClick={() => upVote(false)}
-            className={`voteButtons hover:text-red-400 ${vote === false && 'text-blue-400'}`}
+            className={`voteButtons hover:text-red-400 ${
+              vote === false && "text-blue-400"
+            }`}
           />
         </div>
 

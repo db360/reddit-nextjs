@@ -41,7 +41,7 @@ const PostBox = ({ subreddit }: Props) => {
 
   const onSubmit = handleSubmit(async (formData) => {
     const notification = toast.loading("Creating New Post...");
-    console.log(formData);
+    // console.log(formData);
 
     try {
       // Query for subreddit topic
@@ -54,8 +54,8 @@ const PostBox = ({ subreddit }: Props) => {
         },
       });
 
-      console.log(formData.subreddit);
-      console.log(getSubredditListByTopic);
+      // console.log(formData.subreddit);
+      // console.log(getSubredditListByTopic);
 
       const subredditExist = getSubredditListByTopic.length > 0;
 
@@ -91,7 +91,7 @@ const PostBox = ({ subreddit }: Props) => {
       } else {
         // use existing subreddit
         console.log("Using existing subreddit!");
-        console.log(getSubredditListByTopic);
+        // console.log(getSubredditListByTopic);
 
         const image = formData.postImage || "";
 
